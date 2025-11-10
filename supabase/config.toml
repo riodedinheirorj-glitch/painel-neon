@@ -1,0 +1,13 @@
+project_id = "kpjyqgpvfbnsgpzkywrk"
+
+[functions.abacate-pix-qrcode]
+verify_jwt = true
+
+[functions.abacate-check-payment]
+verify_jwt = true
+
+[functions.add-credits]
+verify_jwt = true
+
+[functions.correct-addresses]
+verify_jwt = true

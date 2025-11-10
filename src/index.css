@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 220 25% 10%;
+    --foreground: 180 100% 95%;
+    --card: 220 30% 12%;
+    --card-foreground: 180 100% 95%;
+    --popover: 220 35% 8%;
+    --popover-foreground: 180 100% 95%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 220 25% 10%;
+    --secondary: 280 100% 60%;
+    --secondary-foreground: 220 25% 10%;
+    --muted: 220 20% 20%;
+    --muted-foreground: 180 50% 70%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 220 25% 10%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 180 50% 25%;
+    --input: 220 30% 18%;
+    --ring: 180 100% 50%;
+    --radius: 0.75rem;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(180 100% 50%), hsl(280 100% 60%));
+    --gradient-subtle: linear-gradient(180deg, hsl(220 25% 10%), hsl(220 30% 12%));
+    --shadow-card: 0 0 20px hsl(180 100% 50% / 0.3);
+    --shadow-elevated: 0 0 40px hsl(180 100% 50% / 0.4);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 180 100% 95%;
+    --sidebar-primary: 180 100% 50%;
+    --sidebar-primary-foreground: 220 25% 10%;
+    --sidebar-accent: 220 20% 20%;
+    --sidebar-accent-foreground: 180 100% 95%;
+    --sidebar-border: 180 50% 25%;
+    --sidebar-ring: 180 100% 50%;
+  }
+
+  .dark {
+    --background: 220 25% 10%;
+    --foreground: 180 100% 95%;
+    --card: 220 30% 12%;
+    --card-foreground: 180 100% 95%;
+    --popover: 220 35% 8%;
+    --popover-foreground: 180 100% 95%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 220 25% 10%;
+    --secondary: 280 100% 60%;
+    --secondary-foreground: 220 25% 10%;
+    --muted: 220 20% 20%;
+    --muted-foreground: 180 50% 70%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 220 25% 10%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 180 50% 25%;
+    --input: 220 30% 18%;
+    --ring: 180 100% 50%;
+    --gradient-primary: linear-gradient(135deg, hsl(180 100% 50%), hsl(280 100% 60%));
+    --gradient-subtle: linear-gradient(180deg, hsl(220 25% 10%), hsl(220 30% 12%));
+    --shadow-card: 0 0 20px hsl(180 100% 50% / 0.3);
+    --shadow-elevated: 0 0 40px hsl(180 100% 50% / 0.4);
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 180 100% 95%;
+    --sidebar-primary: 180 100% 50%;
+    --sidebar-primary-foreground: 220 25% 10%;
+    --sidebar-accent: 220 20% 20%;
+    --sidebar-accent-foreground: 180 100% 95%;
+    --sidebar-border: 180 50% 25%;
+    --sidebar-ring: 180 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(at 0% 0%, hsl(180 100% 20% / 0.2) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsl(280 100% 30% / 0.2) 0px, transparent 50%);
+  }
+  
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 20px hsl(180 100% 50% / 0.5); }
+    50% { box-shadow: 0 0 30px hsl(180 100% 50% / 0.7); }
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+  
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 3s linear infinite;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(180 100% 50% / 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 1000px 100%;
+  }
+}
+
+a[href*="lovable.dev"], iframe[src*="lovable.dev"], div[style*="Edit with Lovable"], .lovable-badge {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  z-index: -9999 !important;
+}
