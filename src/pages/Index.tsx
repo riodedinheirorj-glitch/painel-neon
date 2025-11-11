@@ -10,16 +10,18 @@ import ResultsStep from "@/components/ResultsStep";
 import BuyCreditsDialog from "@/components/BuyCreditsDialog";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import * as XLSX from "xlsx";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Usando toast do sonner
+interface ProcessedData {
+  [key: string]: any;
+  sequences?: string;
+}
 import { getUserRole, insertDownload, getUserCredits, deductCredit } from "@/lib/supabase-helpers";
-import { batchGeocodeAddresses, ProcessedAddress } from "@/lib/nominatim-service"; // Import new service
-
 const Index = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Aguardando início...");
-  const [processedData, setProcessedData] = useState<ProcessedAddress[]>([]); // Use new interface
+  const [processedData, setProcessedData] = useState<ProcessedData[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -100,9 +102,11 @@ const Index = () => {
   }, [user, credits]);
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Você saiu da sua conta");
+    toast.success("Você saiu da sua conta"); // Usando toast do sonner
     navigate("/auth");
   };
+
+  // Removido - sem normalização
 
   const processFile = async (file: File) => {
     setCurrentStep(2);
@@ -111,79 +115,69 @@ const Index = () => {
     setStatus("Lendo arquivo...");
     try {
       const data = await file.arrayBuffer();
-      setProgress(20);
+      setProgress(30);
       setStatus("Analisando dados...");
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
       console.log("Total de linhas na planilha:", jsonData.length);
       if (!jsonData || jsonData.length === 0) {
         throw new Error("Planilha vazia ou sem dados válidos");
       }
-      
-      // Find address column
+      setProgress(50);
+      setStatus("Identificando endereços...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setProgress(70);
+      setStatus("Agrupando por endereço...");
+
+      // Encontrar coluna de endereço
       const addressColumn = Object.keys(jsonData[0] || {}).find(key => key.toLowerCase().includes('endereco') || key.toLowerCase().includes('endereço') || key.toLowerCase().includes('address') || key.toLowerCase().includes('rua'));
+
+      // Encontrar coluna de sequence
+      const sequenceColumn = Object.keys(jsonData[0] || {}).find(key => key.toLowerCase().includes('sequence') || key.toLowerCase().includes('sequencia'));
       if (!addressColumn) {
         throw new Error("Coluna de endereço não encontrada na planilha");
       }
 
-      // --- Geocoding and Correction Step (Batch Processing) ---
-      setProgress(30);
-      setStatus(`Iniciando validação e correção de ${jsonData.length} endereços em lotes...`);
-      
-      const BATCH_SIZE = 21; // Process 21 addresses at a time
-      const allGeocodedData: ProcessedAddress[] = [];
-      const totalAddresses = jsonData.length;
-
-      for (let i = 0; i < totalAddresses; i += BATCH_SIZE) {
-        const batch = jsonData.slice(i, i + BATCH_SIZE).map(row => ({
-          ...row,
-          rawAddress: String(row[addressColumn] || '').trim(),
-          bairro: String(row.bairro || '').trim(),
-          cidade: String(row.cidade || '').trim(),
-          estado: String(row.estado || '').trim(),
-        }));
-
-        setStatus(`Processando lote ${Math.floor(i / BATCH_SIZE) + 1} de ${Math.ceil(totalAddresses / BATCH_SIZE)} (${i + 1}-${Math.min(i + BATCH_SIZE, totalAddresses)})...`);
+      // Função para normalizar endereço (extrair rua + número, ignorando complementos)
+      const normalizeAddress = (address: string): string => {
+        // Remove espaços extras
+        const cleaned = address.trim().replace(/\s+/g, ' ');
         
-        const batchResults = await batchGeocodeAddresses(batch);
-        allGeocodedData.push(...batchResults);
-
-        // Update progress (30% to 70% for geocoding)
-        const geocodeProgress = Math.floor(((i + BATCH_SIZE) / totalAddresses) * 40);
-        setProgress(30 + geocodeProgress);
-      }
-
-      setStatus("Agrupando por endereço...");
-      // --- END Geocoding ---
-
-      // Find sequence column
-      const sequenceColumn = Object.keys(jsonData[0] || {}).find(key => key.toLowerCase().includes('sequence') || key.toLowerCase().includes('sequencia'));
-      
-      // Group by corrected address (or original if not corrected)
-      const grouped: {
-        [key: string]: ProcessedAddress[];
-      } = {};
-      allGeocodedData.forEach((row: ProcessedAddress) => {
-        const addressToGroup = row.correctedAddress || row.originalAddress;
-        if (!grouped[addressToGroup]) {
-          grouped[addressToGroup] = [];
+        // Tenta extrair: Nome da Rua + Número
+        // Exemplos: "Rua Justo de Morais, 21, Casa" -> "Rua Justo de Morais, 21"
+        const match = cleaned.match(/^(.+?[,\s]+\d+)/);
+        if (match) {
+          return match[1].trim();
         }
-        grouped[addressToGroup].push(row);
+        
+        // Se não encontrar número, retorna o endereço completo
+        return cleaned;
+      };
+
+      // Agrupar por endereço normalizado (rua + número)
+      const grouped: {
+        [key: string]: any[];
+      } = {};
+      jsonData.forEach((row: any) => {
+        const fullAddress = String(row[addressColumn] || '').trim();
+        const normalizedAddress = normalizeAddress(fullAddress);
+        
+        if (!grouped[normalizedAddress]) {
+          grouped[normalizedAddress] = [];
+        }
+        grouped[normalizedAddress].push(row);
       });
 
-      // Process each group
+      // Processar cada grupo
       const results = Object.entries(grouped).map(([address, rows]) => {
-        // Take the first record as base, but ensure corrected address and coords are used
+        // Pegar o primeiro registro como base
         const firstRow = {
-          ...rows[0],
-          correctedAddress: address, // The address used for grouping
-          latitude: rows[0].latitude, // Use the first row's coordinates for the group
-          longitude: rows[0].longitude,
+          ...rows[0]
         };
 
-        // If there's a sequence column, join all values into the original column
+        // Se tem coluna de sequence, juntar todos os valores na coluna original
         if (sequenceColumn) {
           const sequences = rows.map(r => String(r[sequenceColumn] || '')).filter(s => s && s.trim() !== '').join('; ');
           firstRow[sequenceColumn] = sequences;
@@ -191,7 +185,6 @@ const Index = () => {
 
         return firstRow;
       });
-      
       console.log("Total de linhas originais:", jsonData.length);
       console.log("Total de endereços únicos:", results.length);
       setProgress(90);
@@ -206,10 +199,10 @@ const Index = () => {
 
       await new Promise(resolve => setTimeout(resolve, 1000));
       setCurrentStep(3);
-      toast.success(`Processamento concluído! ${results.length} endereços únicos de ${jsonData.length} registros`);
+      toast.success(`Processamento concluído! ${results.length} endereços únicos de ${jsonData.length} registros`); // Usando toast do sonner
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
-      toast.error(error instanceof Error ? error.message : "Verifique o formato e tente novamente.");
+      toast.error(error instanceof Error ? error.message : "Verifique o formato e tente novamente."); // Usando toast do sonner
       setCurrentStep(1);
       setIsProcessing(false);
     }
@@ -223,13 +216,13 @@ const Index = () => {
   };
   const handleExport = async (format: 'xlsx' | 'csv') => {
     if (!user) {
-      toast.error("Usuário não autenticado");
+      toast.error("Usuário não autenticado"); // Usando toast do sonner
       return;
     }
 
     // Check credits
     if (credits < 1) {
-      toast.error("Compre mais créditos para continuar", {
+      toast.error("Compre mais créditos para continuar", { // Usando toast do sonner
         description: "Créditos insuficientes",
       });
       setShowBuyCredits(true);
@@ -239,7 +232,7 @@ const Index = () => {
     // Deduct credit
     const result = await deductCredit(user.id);
     if (!result.success) {
-      toast.error(result.error || "Erro ao descontar crédito");
+      toast.error(result.error || "Erro ao descontar crédito"); // Usando toast do sonner
       return;
     }
 
@@ -339,7 +332,7 @@ const Index = () => {
           
           {currentStep === 2 && <ProcessingStep progress={progress} status={status} isComplete={!isProcessing && progress === 100} />}
           
-          {currentStep === 3 && <ResultsStep data={processedData} onExport={handleExport} onReset={handleReset} totalSequences={(window as any).totalSequencesCount || processedData.reduce((sum, row) => sum + (row.sequences ? row.sequences.split('; ').length : 1), 0)} />}
+          {currentStep === 3 && <ResultsStep data={processedData} onExport={handleExport} onReset={handleReset} totalSequences={(window as any).totalSequencesCount || processedData.reduce((sum, row) => sum + row.orderCount, 0)} />}
         </div>
       </div>
 

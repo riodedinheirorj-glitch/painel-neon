@@ -1,11 +1,13 @@
-import { Download, Eye, CheckCircle2, Package, MapPin, FileCheck, MapPinOff } from "lucide-react";
+import { Download, Eye, CheckCircle2, Package, MapPin, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ProcessedAddress } from "@/lib/nominatim-service"; // Import new interface
+interface ProcessedData {
+  [key: string]: any;
+}
 interface ResultsStepProps {
-  data: ProcessedAddress[]; // Use new interface
+  data: ProcessedData[];
   onExport: (format: 'xlsx' | 'csv') => void;
   onReset: () => void;
   totalSequences: number;
@@ -18,19 +20,14 @@ const ResultsStep = ({
 }: ResultsStepProps) => {
   const totalStops = data.length;
 
-  // Get all unique column names from the data, including new ones
-  const allColumns = Array.from(new Set(data.flatMap(row => Object.keys(row))));
+  // Pegar os nomes das colunas do primeiro registro
+  const allColumns = data.length > 0 ? Object.keys(data[0]) : [];
 
-  // Function to translate column names
+  // Função para traduzir nomes de colunas
   const translateColumnName = (col: string): string => {
     const translations: {
       [key: string]: string;
     } = {
-      'originalAddress': 'Endereço Original',
-      'correctedAddress': 'Endereço Corrigido',
-      'latitude': 'Latitude',
-      'longitude': 'Longitude',
-      'status': 'Status',
       'Destination Address': 'Endereço do Cliente',
       'Sequence': 'Identificação do Pacote',
       'sequence': 'Identificação do Pacote',
@@ -40,24 +37,18 @@ const ResultsStep = ({
     return translations[col] || col;
   };
 
-  // Define the order of columns to display
-  const orderedColumns = [
-    'originalAddress',
-    'correctedAddress',
-    'latitude',
-    'longitude',
-    'status',
-    // Add other relevant columns dynamically if they exist in the data
-    ...allColumns.filter(col => !['originalAddress', 'correctedAddress', 'latitude', 'longitude', 'status'].includes(col))
-  ];
-
-  // Filter and sort columns for display in the table
-  const columnsToShow = orderedColumns.filter(col => {
+  // Filtrar e ordenar colunas - apenas Endereço do Cliente e Identificação do Pacote
+  const columns = allColumns.filter(col => {
     const translated = translateColumnName(col);
-    // Only show relevant columns for the log/results
-    return ['Endereço Original', 'Endereço Corrigido', 'Latitude', 'Longitude', 'Status', 'Identificação do Pacote'].includes(translated);
+    return translated === 'Endereço do Cliente' || translated === 'Identificação do Pacote';
+  }).sort((a, b) => {
+    const translatedA = translateColumnName(a);
+    const translatedB = translateColumnName(b);
+    // Endereço do Cliente primeiro, Identificação do Pacote depois
+    if (translatedA === 'Endereço do Cliente') return -1;
+    if (translatedB === 'Endereço do Cliente') return 1;
+    return 0;
   });
-
   return <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Success Message */}
       <div className="text-center space-y-3 mb-8">
@@ -110,28 +101,15 @@ const ResultsStep = ({
           <Table>
             <TableHeader>
               <TableRow>
-                {columnsToShow.map((col, idx) => <TableHead key={idx} className="text-xs sm:text-sm whitespace-nowrap">
+                {columns.map((col, idx) => <TableHead key={idx} className="text-xs sm:text-sm whitespace-nowrap">
                     {translateColumnName(col)}
                   </TableHead>)}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row, rowIndex) => <TableRow key={rowIndex} className={row.status === 'pending' ? 'bg-red-900/20 hover:bg-red-900/30' : ''}>
-                  {columnsToShow.map((col, colIndex) => <TableCell key={colIndex} className="text-xs sm:text-sm whitespace-nowrap">
-                      {col === 'status' ? (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          row.status === 'valid' ? 'bg-green-500/20 text-green-400' :
-                          row.status === 'corrected' ? 'bg-blue-500/20 text-blue-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {row.status === 'valid' ? 'Válido' :
-                           row.status === 'corrected' ? 'Corrigido' :
-                           'Pendente'}
-                           {row.status === 'pending' && <MapPinOff className="ml-1 h-3 w-3" />}
-                        </span>
-                      ) : (
-                        String(row[col] ?? '')
-                      )}
+              {data.map((row, rowIndex) => <TableRow key={rowIndex}>
+                  {columns.map((col, colIndex) => <TableCell key={colIndex} className="text-xs sm:text-sm whitespace-nowrap">
+                      {String(row[col] ?? '')}
                     </TableCell>)}
                 </TableRow>)}
             </TableBody>
