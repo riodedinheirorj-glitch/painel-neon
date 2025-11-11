@@ -130,14 +130,6 @@ export default function Auth() {
 
       if (error) throw error;
 
-      // Check if user requires password change (for admin on first login)
-      if (data.user.user_metadata?.require_password_change) {
-        toast.info("Por segurança, você deve alterar sua senha no primeiro login.");
-        setMode("update-password");
-        setLoading(false);
-        return;
-      }
-
       // Check if user is admin
       const roles = await getUserRole(data.user.id);
 
@@ -284,9 +276,6 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.updateUser({
         password: password,
-        data: {
-          require_password_change: false, // Remove the flag after password change
-        },
       });
 
       if (error) throw error;

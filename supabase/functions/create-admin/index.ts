@@ -58,22 +58,13 @@ serve(async (req) => {
       );
     }
 
-    // Generate strong random password
-    const generateStrongPassword = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-      return Array.from({ length: 20 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    };
-    
-    const generatedPassword = generateStrongPassword();
-
     // Create admin user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: "admin@deliveryflow.com",
-      password: generatedPassword,
+      password: "admin",
       email_confirm: true,
       user_metadata: {
         full_name: "Administrador",
-        require_password_change: true,
       },
     });
 
@@ -97,9 +88,11 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: "Admin user created successfully",
-        email: "admin@deliveryflow.com",
-        temporary_password: generatedPassword,
-        important: "⚠️ SAVE THIS PASSWORD NOW! You will be required to change it on first login. This password will not be shown again."
+        credentials: {
+          email: "admin@deliveryflow.com",
+          password: "admin"
+        },
+        warning: "⚠️ CHANGE THIS PASSWORD IMMEDIATELY IN PRODUCTION!"
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },

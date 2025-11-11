@@ -8,6 +8,3 @@ verify_jwt = true
 
 [functions.add-credits]
 verify_jwt = true
-
-[functions.correct-addresses]
-verify_jwt = true
